@@ -1,5 +1,6 @@
 from cmu_graphics import *
 import string
+import random
 
 def onAppStart(app):
 #———TEXT VARS———————————————————————————————————————————————————————————————————
@@ -18,11 +19,12 @@ def onAppStart(app):
 #———BOARD VARS——————————————————————————————————————————————————————————————————
     app.drawGrid = False
     app.worldRows, app.worldCols = 1000, 1000
+    app.boardDefault = Char('*', color=rgb(200,200,200))
     app.world = [([None] * app.worldCols) for row in range(app.worldRows)]
     app.height = 600
     app.width = 1200
     app.rows, app.cols = 23, 55
-    app.board = [([None] * app.cols) for row in range(app.rows)]
+    app.board = [([app.boardDefault] * app.cols) for row in range(app.rows)]
     app.boardLeft = 25
     app.boardTop = 25
     app.boardWidth = app.width - app.boardLeft * 2
@@ -36,11 +38,18 @@ def onAppStart(app):
     app.steps = 0
 
 class Char:
-    def __init__(self, text, pos, color='black', isMoving=False):
+    def __init__(self, text, pos=0, color='black', isMoving=False):
         self.text = text
         self.pos = pos
         self.color = color
         self.isMoving = isMoving
+
+    def move(self, shift):
+        if not self.isMoving:
+            return
+        letterCase = ord('a') if self.text.islower() else ord('A')
+        alphaIndex = ord(self.text) - letterCase
+        self.text = chr((alphaIndex + shift) % 26 + letterCase)
 
 def redrawAll(app):
     drawRect(0,0,app.width,app.height,fill=rgb(240,240,240))
@@ -48,7 +57,7 @@ def redrawAll(app):
 
 def onStep(app):
     app.steps += 1
-    if app.steps%10 == 0:
+    if app.steps%(app.stepsPerSecond//3) == 0:
         app.steps = 0
         app.cursorBlink = not app.cursorBlink
 
@@ -66,11 +75,14 @@ def drawCell(app, row, col):
         drawRect(left, top, width, height, border='black', 
                  borderWidth=app.cellBorderWidth, fill=None) 
     
-    if app.board[row][col] != None:
+    if app.board[row][col] != app.boardDefault:
+        char = app.board[row][col]
         cx = left + width//2
         cy = top + height//2
-        drawLabel(app.board[row][col], cx, cy, size=18, align='bottom', font='monospace')
-    elif (row,col) == app.currPos:
+        drawLabel(char.text, cx, cy, size=18, align='bottom', font='monospace', fill=char.color)
+        if char.isMoving:
+            char.move(4)
+    if (row,col) == app.currPos:
         cx = left + width//2
         cy = top + height//2
         angle = findAngleFromDir(app)
@@ -118,8 +130,8 @@ def findLastXLetters(app, numOfLetters):
     currPos = app.currPos
     for _ in range(numOfLetters):
         prevCharRow, prevCharCol = addTuple(currPos, oppositeDirection)
-        prevLetter = app.board[prevCharRow][prevCharCol]
-        if prevLetter != None:
+        prevLetter = app.board[prevCharRow][prevCharCol].text
+        if prevLetter != app.boardDefault:
             lastXLetters = prevLetter + lastXLetters
             currPos = (prevCharRow, prevCharCol)
     print(lastXLetters)    
@@ -128,8 +140,8 @@ def findLastXLetters(app, numOfLetters):
 def deleteLastLetter(app):
     oppDir = findOppositeDirection(app)
     targetRow, targetCol = addTuple(app.currPos, oppDir)
-    if app.board[targetRow][targetCol] != None:
-        app.board[targetRow][targetCol] = None
+    if app.board[targetRow][targetCol] != app.boardDefault:
+        app.board[targetRow][targetCol] = app.boardDefault
         app.currPos = (targetRow, targetCol)
         app.text = app.text[:-1]
 
@@ -138,7 +150,6 @@ def undoDirection(app):
     # text starts as 'EE*' for easier tracking of starting point, dont delete that!!
     if app.text == 'EE*':
         return
-
     # if most recent character is '*', change directions immediately
     if app.text[-1] == '*':
         app.text = app.text[:-1]
@@ -157,8 +168,19 @@ def undoDirection(app):
 def addLetter(app, key):
     currRow, currCol = app.currPos
     targetRow, targetCol = addTuple(app.currPos, app.directions[app.currDir])
-    if app.board[targetRow][targetCol] == None:    
-        app.board[currRow][currCol] = key
+    if app.board[targetRow][targetCol] == app.boardDefault:   
+        if key.isdigit():
+            red = random.randint(0,255)
+            green = random.randint(0,255)
+            blue = random.randint(0,255)
+            color = rgb(red, green, blue)
+        else:
+            color = 'black'  
+        if key == 'a':
+            movingTime = True    
+        else:
+            movingTime = False
+        app.board[currRow][currCol] = Char(key, color=color, isMoving=movingTime)
         app.text += key
         app.currPos = targetRow, targetCol
 
