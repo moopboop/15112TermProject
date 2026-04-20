@@ -7,7 +7,6 @@ def onAppStart(app):
     app.currPos = (0,0)
     app.allowedText = set(string.ascii_letters + string.digits)
     app.text = 'EE*'
-    # create string of all tpying, make special character for switching directions to make deleting easier
     app.directions = {'NW':(-1,-1), 'NN':(-1, 0), 'NE':(-1, 1), 
                       'WW':( 0,-1),               'EE':( 0, 1), 
                       'SW':( 1,-1), 'SS':( 1, 0), 'SE':( 1, 1)}
@@ -19,12 +18,13 @@ def onAppStart(app):
 #———BOARD VARS——————————————————————————————————————————————————————————————————
     app.drawGrid = False
     app.worldRows, app.worldCols = 1000, 1000
-    app.boardDefault = Char('*', color=rgb(200,200,200))
-    app.world = [([None] * app.worldCols) for row in range(app.worldRows)]
+    app.boardDefault = None
+    app.world = [([app.boardDefault] * app.worldCols) for row in range(app.worldRows)]
     app.height = 600
     app.width = 1200
     app.rows, app.cols = 23, 55
-    app.board = [([app.boardDefault] * app.cols) for row in range(app.rows)]
+    app.topLeftX, app.topLeftY = 0, 0
+    calculateVisibleBoard(app, app.topLeftY, app.topLeftX)
     app.boardLeft = 25
     app.boardTop = 25
     app.boardWidth = app.width - app.boardLeft * 2
@@ -38,11 +38,13 @@ def onAppStart(app):
     app.steps = 0
 
 class Char:
-    def __init__(self, text, pos=0, color='black', isMoving=False):
+    def __init__(self, text, color='black', isMoving=False):
         self.text = text
-        self.pos = pos
         self.color = color
         self.isMoving = isMoving
+
+    def __repr__(self):
+        return f'Char({self.text})'    
 
     def move(self, shift):
         if not self.isMoving:
@@ -50,6 +52,14 @@ class Char:
         letterCase = ord('a') if self.text.islower() else ord('A')
         alphaIndex = ord(self.text) - letterCase
         self.text = chr((alphaIndex + shift) % 26 + letterCase)
+
+def calculateVisibleBoard(app, rowOffset, colOffset):
+    app.board = []
+    for i in range(app.rows):
+        rowList = []
+        for j in range(app.cols):
+            rowList.append(app.world[rowOffset + i][colOffset + j])
+        app.board.append(rowList)    
 
 def redrawAll(app):
     drawRect(0,0,app.width,app.height,fill=rgb(240,240,240))
@@ -69,6 +79,7 @@ def drawBoard(app):
 def drawCell(app, row, col):
     left, top = getCellLeftTop(app, row, col)
     width, height = getCellSize(app)
+    cx, cy = left + width//2, top + height//2
     
     # for debugging, draws grid on "esc"
     if app.drawGrid:
@@ -77,20 +88,17 @@ def drawCell(app, row, col):
     
     if app.board[row][col] != app.boardDefault:
         char = app.board[row][col]
-        cx = left + width//2
-        cy = top + height//2
         drawLabel(char.text, cx, cy, size=18, align='bottom', font='monospace', fill=char.color)
-        if char.isMoving:
-            char.move(4)
+        if char.isMoving and app.steps%3 == 0:
+            char.move(5)
     if (row,col) == app.currPos:
-        cx = left + width//2
-        cy = top + height//2
         angle = findAngleFromDir(app)
         if app.cursorBlink:
             rectColor, cursColor = rgb(50,50,50), rgb(200,200,200)
         else:
             cursColor, rectColor = rgb(50,50,50), rgb(200,200,200)
         drawRect(left, top-(height//3), width, height, fill=rectColor)
+        drawLabel(app.currPos, cx, cy-25, font='monospace')
         drawLabel('^', cx, cy, size=18, align='bottom', font='monospace', rotateAngle=angle, bold=True, fill=cursColor)
 
 def getCellLeftTop(app, row, col):
@@ -108,7 +116,20 @@ def onKeyPress(app, key, modifiers):
     if key == 'escape':
         # app.drawGrid = not app.drawGrid
         # print(app.text)
+        print(app.board)
         pass
+    if key == 'right':
+        app.topLeftX += 1
+        app.currPos = addTuple(app.currPos, (0,-1))
+    elif key == 'left':
+        app.topLeftX -= 1 
+        app.currPos = addTuple(app.currPos, (0,+1))
+    elif key == 'up':
+        app.topLeftY -= 1  
+        app.currPos = addTuple(app.currPos, (+1,0))         
+    elif key == 'down':
+        app.topLeftY += 1
+        app.currPos = addTuple(app.currPos, (-1,0))
     elif key == 'enter':
         checkDirection(app)
     elif key == 'backspace':
@@ -117,9 +138,11 @@ def onKeyPress(app, key, modifiers):
         undoDirection(app)
     elif key in app.allowedText:
         addLetter(app, key)
+    calculateVisibleBoard(app, app.topLeftY, app.topLeftX) 
 
 def checkDirection(app):
-    prevTwoChars = findLastXLetters(app, 2)
+    # prevTwoChars = findLastXLetters(app, 2)
+    prevTwoChars = app.text[-2:]
     if prevTwoChars in app.directions:
         app.currDir = prevTwoChars
         app.text += '*'
@@ -140,8 +163,8 @@ def findLastXLetters(app, numOfLetters):
 def deleteLastLetter(app):
     oppDir = findOppositeDirection(app)
     targetRow, targetCol = addTuple(app.currPos, oppDir)
-    if app.board[targetRow][targetCol] != app.boardDefault:
-        app.board[targetRow][targetCol] = app.boardDefault
+    if app.world[targetRow][targetCol] != app.boardDefault:
+        app.world[targetRow][targetCol] = app.boardDefault
         app.currPos = (targetRow, targetCol)
         app.text = app.text[:-1]
 
@@ -168,19 +191,20 @@ def undoDirection(app):
 def addLetter(app, key):
     currRow, currCol = app.currPos
     targetRow, targetCol = addTuple(app.currPos, app.directions[app.currDir])
-    if app.board[targetRow][targetCol] == app.boardDefault:   
+    if app.world[targetRow][targetCol] == app.boardDefault:   
         if key.isdigit():
             red = random.randint(0,255)
             green = random.randint(0,255)
             blue = random.randint(0,255)
             color = rgb(red, green, blue)
         else:
-            color = 'black'  
+            hue = random.randint(10,40)
+            color = rgb(hue,hue,hue) 
         if key == 'a':
             movingTime = True    
         else:
             movingTime = False
-        app.board[currRow][currCol] = Char(key, color=color, isMoving=movingTime)
+        app.world[currRow][currCol] = Char(key, color=color, isMoving=movingTime)
         app.text += key
         app.currPos = targetRow, targetCol
 
