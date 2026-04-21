@@ -4,7 +4,7 @@ import random
 
 def onAppStart(app):
 #———TEXT VARS———————————————————————————————————————————————————————————————————
-    app.currPos = (0,0)
+    app.currPos = (14,32)
     app.allowedText = set(string.ascii_letters + string.digits)
     app.text = 'EE*'
     app.directions = {'NW':(-1,-1), 'NN':(-1, 0), 'NE':(-1, 1), 
@@ -130,7 +130,9 @@ def onKeyPress(app, key, modifiers):
     if key == 'escape':
         # app.drawGrid = not app.drawGrid
         # print(app.text)
-        print(app.currPos)
+        print(f'{app.currPos=}')
+        print(f'{app.topLeftRow=}, {app.topLeftCol=}')
+        print(f'{app.text=}')
         pass
     # RLUD here for debugging
     elif key == 'right':
@@ -151,12 +153,7 @@ def onKeyPress(app, key, modifiers):
     # elif key in app.allowedText:
     elif len(key) == 1:
         addLetter(app, key)
-    calculateVisibleBoard(app, app.topLeftRow, app.topLeftCol) 
-
-def moveCanvas(app, dCol, dRow):
-    app.topLeftCol += dCol
-    app.topLeftRow += dRow
-    # app.currPos = addTuple(app.currPos, (-dRow, -dCol))
+    calculateVisibleBoard(app, app.topLeftRow, app.topLeftCol)     
 
 def checkDirection(app):
     # prevTwoChars = findLastXLetters(app, 2)
@@ -171,17 +168,18 @@ def checkPhoto(app):
         app.selectedPhoto = app.photoPath + prevThreeChars + '.jpg'
         app.backgroundOpacity = 26
 
-def findLastXLetters(app, numOfLetters):
-    oppositeDirection = findOppositeDirection(app)
-    lastXLetters = ''
-    currPos = app.currPos
-    for _ in range(numOfLetters):
-        prevCharRow, prevCharCol = addTuple(currPos, oppositeDirection)
-        prevLetter = app.board[prevCharRow][prevCharCol].text
-        if prevLetter != app.boardDefault:
-            lastXLetters = prevLetter + lastXLetters
-            currPos = (prevCharRow, prevCharCol)
-    return lastXLetters    
+## older function of finding previous chars before i had app.text
+# def findLastXLetters(app, numOfLetters):
+    # oppositeDirection = findOppositeDirection(app)
+    # lastXLetters = ''
+    # currPos = app.currPos
+    # for _ in range(numOfLetters):
+    #     prevCharRow, prevCharCol = addTuple(currPos, oppositeDirection)
+    #     prevLetter = app.board[prevCharRow][prevCharCol].text
+    #     if prevLetter != app.boardDefault:
+    #         lastXLetters = prevLetter + lastXLetters
+    #         currPos = (prevCharRow, prevCharCol)
+    # return lastXLetters    
 
 def deleteLastLetter(app):
     oppDir = findOppositeDirection(app)
@@ -210,6 +208,8 @@ def undoDirection(app):
 
 def addLetter(app, key):
     currRow, currCol = app.currPos
+    currRow += app.topLeftRow
+    currCol += app.topLeftCol
     targetRow, targetCol = addTuple(app.currPos, app.directions[app.currDir])
     if app.world[targetRow][targetCol] == app.boardDefault:   
         if key.isdigit():
@@ -219,14 +219,39 @@ def addLetter(app, key):
             color = rgb(red, green, blue)
         else:
             hue = random.randint(10,40)
-            color = rgb(hue, hue, hue) 
-        if key == 'a':
-            movingTime = True    
-        else:
-            movingTime = False
-        app.world[currRow][currCol] = Char(key, color=color, isMoving=movingTime)
+            color = rgb(hue, hue, hue)             
+        app.world[currRow][currCol] = Char(key, color=color)
         app.text += key
-        app.currPos = targetRow, targetCol
+        app.currPos = (targetRow, targetCol)
+        # checkPosition(app, targetRow, targetCol)
+
+def checkPosition(app, targetRow, targetCol):
+    currRow, currCol = app.currPos
+    rowLowBound, rowHighBound = 5, app.rows - 5
+    colLowBound, colHighBound = 5, app.cols - 5
+    # print(app.currPos)
+    # print(f'{newRow=}, {rowLowBound=}, {rowHighBound=}')
+    # print(f'{newCol=}, {colHighBound=}, {colHighBound=}')
+    if targetRow <= rowLowBound:
+        moveCanvas(app, 0, +1)
+    elif targetRow >= rowHighBound:
+        moveCanvas(app, 0, -1)
+    elif targetCol <= colLowBound:
+        moveCanvas(app, -1, 0)
+    elif targetCol >= colHighBound:
+        moveCanvas(app, +1, 0)
+    else:
+        app.currPos = (targetRow, targetCol)            
+
+def moveCanvas(app, dCol, dRow):
+    app.topLeftCol += dCol
+    app.topLeftRow += dRow
+    if app.topLeftCol < 0 or app.topLeftCol > app.worldCols - app.cols:
+        app.topLeftCol -= dCol
+    elif app.topLeftRow < 0 or app.topLeftRow > app.worldRows - app.rows:
+        app.topLeftRow -= dRow
+    else:
+        app.currPos = addTuple(app.currPos, (-dRow, -dCol)) 
 
 def addTuple(tupOne, tupTwo):
     x1, y1 = tupOne
