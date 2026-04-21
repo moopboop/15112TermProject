@@ -219,8 +219,13 @@ def addLetter(app, key):
             color = rgb(red, green, blue)
         else:
             hue = random.randint(10,40)
-            color = rgb(hue, hue, hue)             
-        app.world[currRow][currCol] = Char(key, color=color)
+            color = rgb(hue, hue, hue)
+
+        if key == 'a':
+            moving = True
+        else:
+            moving = False             
+        app.world[currRow][currCol] = Char(key, color=color, isMoving=moving)
         app.text += key
         app.currPos = (targetRow, targetCol)
         # checkPosition(app, targetRow, targetCol)
