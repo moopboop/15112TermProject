@@ -1,10 +1,12 @@
 from cmu_graphics import *
+from char import *
+from etchBoard import *
 import string
 import random
 
 def onAppStart(app):
 #———TEXT VARS———————————————————————————————————————————————————————————————————
-    app.currPos = (14,32)
+    app.localPos = (14,32)
     app.allowedText = set(string.ascii_letters + string.digits)
     app.text = 'EE*'
     app.directions = {'NW':(-1,-1), 'NN':(-1, 0), 'NE':(-1, 1), 
@@ -22,7 +24,9 @@ def onAppStart(app):
     app.world = [([app.boardDefault] * app.worldCols) for row in range(app.worldRows)]
     app.rows, app.cols = 30, 65
     app.topLeftCol = app.topLeftRow = 0
+    placeItemsInWorld(app)
     calculateVisibleBoard(app, app.topLeftRow, app.topLeftCol)
+    app.globalPos = addTuple(app.localPos, (app.topLeftRow, app.topLeftCol))
     app.boardLeft = 25
     app.boardTop = 25
     app.boardWidth = app.width - app.boardLeft * 2
@@ -31,9 +35,9 @@ def onAppStart(app):
 
 #———EXTERNAL VARS———————————————————————————————————————————————————————————————
     # LINES 34-36 ATTRIBUTION: medium.com/codex/how-to-open-view-files-in-python-e77e3e9d3f1d
-    app.photoPath = r'/Users/martinbaker/Documents/GitHub/15112TermProject/secretImages/'
+    app.photoPath = '/Users/martinbaker/Documents/GitHub/15112TermProject/secretImages/'
     app.photos = {'KOZ', 'SAN', 'YUD', 'HAR'}
-    app.selectedPhoto = r'/Users/martinbaker/Documents/GitHub/15112TermProject/secretImages/KOZ.jpg'
+    app.selectedPhoto = '/Users/martinbaker/Documents/GitHub/15112TermProject/secretImages/KOZ.jpg'
     app.backgroundOpacity = 100
 
 #———SYS VARS————————————————————————————————————————————————————————————————————
@@ -42,21 +46,17 @@ def onAppStart(app):
     app.stepsPerSecond = 30
     app.steps = 0
 
-class Char:
-    def __init__(self, text, color='black', isMoving=False):
-        self.text = text
-        self.color = color
-        self.isMoving = isMoving
+def placeItemsInWorld(app):
+    placeItemInWorld(app, strTo2DList(etch))
 
-    def __repr__(self):
-        return f'Char({self.text})'    
-
-    def move(self, shift):
-        if not self.isMoving:
-            return
-        letterCase = ord('a') if self.text.islower() else ord('A')
-        alphaIndex = ord(self.text) - letterCase
-        self.text = chr((alphaIndex + shift) % 26 + letterCase)
+def placeItemInWorld(app, item):
+    rows, cols = len(item), len(item[0])
+    for row in range(rows):
+        for col in range(len(item[row])):
+            if item[row][col] != None:
+                insertionRow = row + app.topLeftRow
+                insertionCol = col + app.topLeftCol
+                app.world[insertionRow][insertionCol] = item[row][col]
 
 def calculateVisibleBoard(app, rowOffset, colOffset):
     app.board = []
@@ -64,13 +64,7 @@ def calculateVisibleBoard(app, rowOffset, colOffset):
         rowList = []
         for j in range(app.cols):
             rowList.append(app.world[rowOffset + i][colOffset + j])
-        app.board.append(rowList)    
-
-def redrawAll(app):
-    drawImage(app.selectedPhoto, 0, 0)
-    drawRect(0, 0, app.width, app.height, fill=rgb(240,240,240), 
-             opacity=app.backgroundOpacity)
-    drawBoard(app)
+        app.board.append(rowList)
 
 def onStep(app):
     app.steps += 1
@@ -83,14 +77,41 @@ def onStep(app):
     if app.steps >= 30:
         app.steps = 0
             
+def redrawAll(app):
+    drawImage(app.selectedPhoto, 0, 0)
+    drawRect(0, 0, app.width, app.height, fill=rgb(220,220,220), 
+             opacity=app.backgroundOpacity)
+    drawBoard(app)
+
 def drawBoard(app):
     for row in range(app.rows):
         for col in range(app.cols):
             drawCell(app, row, col)
 
 def drawCell(app, row, col):
-    left, top = getCellLeftTop(app, row, col)
-    width, height = getCellSize(app)
+    def findAngleFromDir():
+        if   app.currDir == 'NN':    return 0
+        elif app.currDir == 'NE':    return 45
+        elif app.currDir == 'EE':    return 90
+        elif app.currDir == 'SE':    return 135
+        elif app.currDir == 'SS':    return 180
+        elif app.currDir == 'SW':    return 225
+        elif app.currDir == 'WW':    return 270           
+        elif app.currDir == 'NW':    return 315
+
+    def getCellLeftTop(row, col):
+        cellWidth, cellHeight = getCellSize()
+        cellLeft = app.boardLeft + col * cellWidth
+        cellTop = app.boardTop + row * cellHeight
+        return (cellLeft, cellTop)
+
+    def getCellSize():
+        cellWidth = app.boardWidth / app.cols
+        cellHeight = app.boardHeight / app.rows
+        return (cellWidth, cellHeight)    
+
+    left, top = getCellLeftTop(row, col)
+    width, height = getCellSize()
     cx, cy = left + width//2, top + height//2
     
     # for debugging grid placement
@@ -102,47 +123,33 @@ def drawCell(app, row, col):
         char = app.board[row][col]
         drawLabel(char.text, cx, cy, size=18, align='bottom', 
                   font='monospace', fill=char.color)
+        drawRect(left, top-(height//3), width, height, fill=char.color, opacity=5)
         if char.isMoving and app.steps % 3 == 0:
-            char.move(5)
-    if (row,col) == app.currPos:
-        angle = findAngleFromDir(app)
+            char.listMove()
+    if (row,col) == app.localPos:
+        angle = findAngleFromDir()
         if app.cursorBlink:
             rectColor, cursColor = rgb(50,50,50), rgb(200,200,200)
         else:
             cursColor, rectColor = rgb(50,50,50), rgb(200,200,200)
         drawRect(left, top-(height//3), width, height, fill=rectColor)
-        drawLabel(app.currPos, cx, cy+25, font='monospace')
         drawLabel('^', cx, cy, size=18, align='bottom', font='monospace', 
                   rotateAngle=angle, bold=True, fill=cursColor)
-
-def getCellLeftTop(app, row, col):
-    cellWidth, cellHeight = getCellSize(app)
-    cellLeft = app.boardLeft + col * cellWidth
-    cellTop = app.boardTop + row * cellHeight
-    return (cellLeft, cellTop)
-
-def getCellSize(app):
-    cellWidth = app.boardWidth / app.cols
-    cellHeight = app.boardHeight / app.rows
-    return (cellWidth, cellHeight)    
 
 def onKeyPress(app, key, modifiers):
     if key == 'escape':
         # app.drawGrid = not app.drawGrid
         # print(app.text)
-        print(f'{app.currPos=}')
-        print(f'{app.topLeftRow=}, {app.topLeftCol=}')
-        print(f'{app.text=}')
+        # print(f'{app.localPos=}')
+        # print(f'{app.topLeftRow=}, {app.topLeftCol=}')
+        # print(f'{app.text=}')
         pass
-    # RLUD here for debugging
-    elif key == 'right':
-        moveCanvas(app, +1, 0)
-    elif key == 'left':
-        moveCanvas(app, -1, 0)
-    elif key == 'up':
-        moveCanvas(app, 0,-1)         
-    elif key == 'down':
-        moveCanvas(app, 0,+1)
+    elif key == '+' and app.rows < 50:
+        app.rows += 1
+        app.cols += 1
+    elif key == '-' and app.rows > 30:
+        app.rows -= 1
+        app.cols -= 1
     elif key == 'enter':
         checkDirection(app)
         checkPhoto(app)
@@ -150,7 +157,6 @@ def onKeyPress(app, key, modifiers):
         deleteLastLetter(app)
     elif modifiers + [key] == ['control', 'z']:
         undoDirection(app)
-    # elif key in app.allowedText:
     elif len(key) == 1:
         addLetter(app, key)
     calculateVisibleBoard(app, app.topLeftRow, app.topLeftCol)     
@@ -167,27 +173,6 @@ def checkPhoto(app):
     if prevThreeChars in app.photos:
         app.selectedPhoto = app.photoPath + prevThreeChars + '.jpg'
         app.backgroundOpacity = 26
-
-## older function of finding previous chars before i had app.text
-# def findLastXLetters(app, numOfLetters):
-    # oppositeDirection = findOppositeDirection(app)
-    # lastXLetters = ''
-    # currPos = app.currPos
-    # for _ in range(numOfLetters):
-    #     prevCharRow, prevCharCol = addTuple(currPos, oppositeDirection)
-    #     prevLetter = app.board[prevCharRow][prevCharCol].text
-    #     if prevLetter != app.boardDefault:
-    #         lastXLetters = prevLetter + lastXLetters
-    #         currPos = (prevCharRow, prevCharCol)
-    # return lastXLetters    
-
-def deleteLastLetter(app):
-    oppDir = findOppositeDirection(app)
-    targetRow, targetCol = addTuple(app.currPos, oppDir)
-    if app.world[targetRow][targetCol] != app.boardDefault:
-        app.world[targetRow][targetCol] = app.boardDefault
-        app.currPos = (targetRow, targetCol)
-        app.text = app.text[:-1]
 
 def undoDirection(app):
     # '*' is included in text to make it easier to find the last direction change
@@ -206,11 +191,29 @@ def undoDirection(app):
         for _ in range(lettersToDelete):
             deleteLastLetter(app)   
 
-def addLetter(app, key):
-    currRow, currCol = app.currPos
+def deleteLastLetter(app):
+    def findOppositeDirection():
+        dx, dy = app.directions[app.currDir]
+        return (dx * -1, dy * -1)
+
+    oppDir = findOppositeDirection()
+    currRow, currCol = app.localPos
     currRow += app.topLeftRow
     currCol += app.topLeftCol
-    targetRow, targetCol = addTuple(app.currPos, app.directions[app.currDir])
+    targetRow, targetCol = addTuple((currRow, currCol), oppDir)
+    if app.world[targetRow][targetCol] != app.boardDefault:
+        app.world[targetRow][targetCol] = app.boardDefault
+        checkPosition(app, targetRow - app.topLeftRow, targetCol - app.topLeftCol, isForward=False)
+        app.text = app.text[:-1]
+
+def addLetter(app, key):
+    currRow, currCol = app.localPos
+    currRow += app.topLeftRow
+    currCol += app.topLeftCol
+    targetRow, targetCol = addTuple((currRow, currCol), app.directions[app.currDir])
+    if (targetRow < 0 or targetRow >= app.worldRows or 
+        targetCol < 0 or targetCol >= app.worldCols):
+        return
     if app.world[targetRow][targetCol] == app.boardDefault:   
         if key.isdigit():
             red = random.randint(0,255)
@@ -219,63 +222,50 @@ def addLetter(app, key):
             color = rgb(red, green, blue)
         else:
             hue = random.randint(10,40)
-            color = rgb(hue, hue, hue)
-
-        if key == 'a':
-            moving = True
-        else:
-            moving = False             
-        app.world[currRow][currCol] = Char(key, color=color, isMoving=moving)
+            color = rgb(hue, hue, hue) 
+        app.world[currRow][currCol] = Char(key, color=color)
         app.text += key
-        app.currPos = (targetRow, targetCol)
-        # checkPosition(app, targetRow, targetCol)
+        checkPosition(app, targetRow - app.topLeftRow, targetCol - app.topLeftCol)
 
-def checkPosition(app, targetRow, targetCol):
-    currRow, currCol = app.currPos
-    rowLowBound, rowHighBound = 5, app.rows - 5
-    colLowBound, colHighBound = 5, app.cols - 5
-    # print(app.currPos)
-    # print(f'{newRow=}, {rowLowBound=}, {rowHighBound=}')
-    # print(f'{newCol=}, {colHighBound=}, {colHighBound=}')
-    if targetRow <= rowLowBound:
-        moveCanvas(app, 0, +1)
-    elif targetRow >= rowHighBound:
-        moveCanvas(app, 0, -1)
-    elif targetCol <= colLowBound:
-        moveCanvas(app, -1, 0)
-    elif targetCol >= colHighBound:
-        moveCanvas(app, +1, 0)
-    else:
-        app.currPos = (targetRow, targetCol)            
+def checkPosition(app, targetRow, targetCol, isForward=True):
+    currRow, currCol = app.localPos
+    rowLowBound, rowHighBound = 3, app.rows - 3
+    colLowBound, colHighBound = 3, app.cols - 3
+    moved = False
+    if targetRow <= rowLowBound and app.topLeftRow != 0:
+        moved = moveCanvas(app, 0, -1, isForward)
+    elif targetRow >= rowHighBound and app.topLeftRow != app.worldRows:
+        moved = moveCanvas(app, 0, +1, isForward)
+    if targetCol <= colLowBound and app.topLeftCol != 0:
+        moved = moveCanvas(app, -1, 0, isForward)
+    elif targetCol >= colHighBound and app.topLeftCol != app.worldCols:
+        moved = moveCanvas(app, +1, 0, isForward)
+    
+    app.localPos = addTuple(app.localPos, app.directions[app.currDir]) if moved else (targetRow, targetCol)
 
-def moveCanvas(app, dCol, dRow):
+def moveCanvas(app, dCol, dRow, isForward):
+    print('moving')
     app.topLeftCol += dCol
     app.topLeftRow += dRow
+    # bounds checks
     if app.topLeftCol < 0 or app.topLeftCol > app.worldCols - app.cols:
         app.topLeftCol -= dCol
     elif app.topLeftRow < 0 or app.topLeftRow > app.worldRows - app.rows:
         app.topLeftRow -= dRow
+    # handle movement    
     else:
-        app.currPos = addTuple(app.currPos, (-dRow, -dCol)) 
+        if isForward:
+            print('forward')
+            app.localPos = addTuple(app.localPos, (-dRow, -dCol)) 
+        else:
+            print('backward')
+            app.localPos = addTuple(app.localPos, (dRow, dCol)) 
+    return True    
 
 def addTuple(tupOne, tupTwo):
     x1, y1 = tupOne
     x2, y2 = tupTwo
     return (x1 + x2, y1 + y2)
-    
-def findOppositeDirection(app):
-    dx, dy = app.directions[app.currDir]
-    return (dx * -1, dy * -1)
-    
-def findAngleFromDir(app):
-    if   app.currDir == 'NN':    return 0
-    elif app.currDir == 'NE':    return 45
-    elif app.currDir == 'EE':    return 90
-    elif app.currDir == 'SE':    return 135
-    elif app.currDir == 'SS':    return 180
-    elif app.currDir == 'SW':    return 225
-    elif app.currDir == 'WW':    return 270           
-    elif app.currDir == 'NW':    return 315
     
 def main():
     runApp(width=1280, height=720)
