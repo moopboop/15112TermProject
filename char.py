@@ -24,12 +24,3 @@ class Char:
         self.movingListIndex += 1
         if self.movingListIndex >= len(self.movingList):
             self.movingListIndex = 0
-
-    # def orderedMove(self, shift):
-    #     if self.movingList == []:
-    #         return
-    #     letterCase = ord('a') if self.text.islower() else ord('A')
-    #     alphaIndex = ord(self.text) - letterCase
-    #     self.text = chr((alphaIndex + shift) % 26 + letterCase)
-
-

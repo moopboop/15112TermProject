@@ -48,12 +48,17 @@ def onAppStart(app):
     app.steps = 0
 
 def placeItemsInWorld(app):
+    placeTreesInWorld(app)
     placeItemInWorld(app, ETCH, app.topLeftRow, app.topLeftCol)
-    placeItemInWorld(app, TREE1, 100, 100)
-    placeItemInWorld(app, TREE2, 100, 130)
-    placeItemInWorld(app, TREE3, 100, 160)
 
-
+def placeTreesInWorld(app):
+    trees = [TREE1, TREE2, TREE3]
+    for row in range(0, app.worldRows, 40):
+        for col in range(0, app.worldCols, 40):
+            if row < app.rows and col < app.cols:
+                break
+            tree = trees[random.randint(0,2)]    
+            placeItemInWorld(app, tree, row, col)
 
 def placeItemInWorld(app, item, worldRow, worldCol):
     rows, cols = len(item), len(item[0])
