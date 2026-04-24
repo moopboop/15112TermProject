@@ -1,5 +1,5 @@
 from cmu_graphics import *
-from char import *
+from charClass import *
 import string
 
 class EnvironmentItem:

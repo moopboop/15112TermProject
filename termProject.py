@@ -1,5 +1,5 @@
 from cmu_graphics import *
-from char import *
+from charClass import *
 from etchBoard import ETCH
 from tree import TREE1, TREE2, TREE3
 import string
