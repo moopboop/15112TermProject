@@ -160,6 +160,7 @@ def onKeyPress(app, key, modifiers):
         moveCanvas(app, 0,-10, True)   
     elif modifiers + [key] == ['shift', 'left']:
         moveCanvas(app,-10, 0, True)
+    # SPECIAL COMMANDS OVER
     elif len(key) == 1:
         addLetter(app, key)
     app.board = []    
