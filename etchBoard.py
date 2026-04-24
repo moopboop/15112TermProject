@@ -14,8 +14,8 @@ etchStr = '''\
 |||                                                           |||
 |||                                                           |||
 |||                                                           |||
-|||                                                          ------------
-|||                                                          ------------
+|||                                                           ------------
+|||                                                           ------------
 |||                                                           |||
 |||                                                           |||
 |||                                                           |||
@@ -39,10 +39,8 @@ goldColor = rgb(173, 130, 0)
 redTextChars = {'+', '-', '|'}
 redColor = rgb(150, 0, 0)
 
-salmonTextChars = {'X', '.'}
-salmonColor = rgb(184, 176, 152)
-# blackColor = rgb(60,60,60)
-# grayColor = rgb(150,150,150)
+knobTextChars = {'X', '.'}
+knobColor = rgb(184, 176, 152)
 
-ETCH = EnvironmentItem(etchStr, [goldTextChars, redTextChars, salmonTextChars], 
-					  [goldColor, redColor, salmonColor], [[], [], []]).item
+ETCH = EnvironmentItem(etchStr, [goldTextChars, redTextChars, knobTextChars], 
+					  [goldColor, redColor, knobColor], [[], [], []]).item

@@ -1,7 +1,7 @@
 from cmu_graphics import *
 from charClass import *
 from etchBoard import ETCH
-from tree import TREE1, TREE2, TREE3
+from tree import getTree
 import string
 import random
 
@@ -14,8 +14,6 @@ def onAppStart(app):
                                'WW':[( 0,-1), 270],                      'EE':[( 0, 1),  90], 
                                'SW':[( 1,-1), 225], 'SS':[( 1, 0), 180], 'SE':[( 1, 1), 135]}
     app.currDir = 'EE' #start by typing to the right
-    app.lastChar = app.secLastChar = None
-    app.lastCharPos = app.secLastCharPos = None
     app.cursorBlink = False
     
 #———BOARD VARS——————————————————————————————————————————————————————————————————
@@ -23,11 +21,10 @@ def onAppStart(app):
     app.worldRows, app.worldCols = 1000, 1000
     app.boardDefault = None
     app.world = [([app.boardDefault] * app.worldCols) for row in range(app.worldRows)]
-    app.rows, app.cols = 30, 65
+    app.rows, app.cols = 30, 70
     app.topLeftCol = app.topLeftRow = 0
     placeItemsInWorld(app)
     calculateVisibleBoard(app)
-    app.globalPos = addTuple(app.localPos, (app.topLeftRow, app.topLeftCol))
     app.boardLeft = 25
     app.boardTop = 25
     app.boardWidth = app.width - app.boardLeft * 2
@@ -52,29 +49,29 @@ def placeItemsInWorld(app):
     placeItemInWorld(app, ETCH, app.topLeftRow, app.topLeftCol)
 
 def placeTreesInWorld(app):
-    trees = [TREE1, TREE2, TREE3]
-    for row in range(0, app.worldRows, 40):
-        for col in range(0, app.worldCols, 40):
-            if row < app.rows and col < app.cols:
-                break
-            tree = trees[random.randint(0,2)]    
-            placeItemInWorld(app, tree, row, col)
+    for row in range(0, app.worldRows-50, 30):
+        for col in range(0, app.worldCols-50, 30):
+            newRow = row + random.randint(0,20)
+            newCol = col + random.randint(0,20)
+            tree = getTree(random.randint(1,3))
+            if not (newRow < app.rows and newCol < app.cols):
+                placeItemInWorld(app, tree, newRow, newCol)
 
-def placeItemInWorld(app, item, worldRow, worldCol):
+def placeItemInWorld(app, item, worldRow, worldCol, boardReset=False):
     rows, cols = len(item), len(item[0])
     for row in range(rows):
         for col in range(len(item[row])):
-            if item[row][col] != None:
+            if item[row][col] != None or boardReset:
                 insertionRow = row + worldRow
                 insertionCol = col + worldCol
                 app.world[insertionRow][insertionCol] = item[row][col]
 
 def calculateVisibleBoard(app):
     app.board = []
-    for i in range(app.rows):
+    for row in range(app.rows):
         rowList = []
-        for j in range(app.cols):
-            rowList.append(app.world[app.topLeftRow + i][app.topLeftCol + j])
+        for col in range(app.cols):
+            rowList.append(app.world[app.topLeftRow + row][app.topLeftCol + col])
         app.board.append(rowList)
 
 def onStep(app):
@@ -138,14 +135,7 @@ def drawCell(app, row, col):
                   rotateAngle=angle, bold=True, fill=cursColor)
 
 def onKeyPress(app, key, modifiers):
-    if key == 'escape':
-        # app.drawGrid = not app.drawGrid
-        # print(app.text)
-        # print(f'{app.localPos=}')
-        # print(f'{app.topLeftRow=}, {app.topLeftCol=}')
-        # print(f'{app.text=}')
-        pass
-    elif key == '+' and app.rows < 50:
+    if key == '+' and app.rows < 50:
         app.rows += 1
         app.cols += 1
     elif key == '-' and app.rows > 30:
@@ -154,17 +144,28 @@ def onKeyPress(app, key, modifiers):
     elif key == 'enter':
         checkDirection(app)
         checkPhoto(app)
+        checkShake(app)
     elif key == 'backspace':
         deleteLastLetter(app)
     elif modifiers + [key] == ['control', 'z']:
         undoDirection(app)
+    # SPECIAL COMMANDS ONLY FOR DEMO
+    elif modifiers + [key] == ['control', '1']:
+        app.localPos = (app.rows-1, app.cols-1)
+    elif modifiers + [key] == ['shift', 'right']:
+        moveCanvas(app, 10, 0, True)   
+    elif modifiers + [key] == ['shift', 'down']:
+        moveCanvas(app, 0, 10, True)        
+    elif modifiers + [key] == ['shift', 'up']:
+        moveCanvas(app, 0,-10, True)   
+    elif modifiers + [key] == ['shift', 'left']:
+        moveCanvas(app,-10, 0, True)
     elif len(key) == 1:
         addLetter(app, key)
     app.board = []    
     calculateVisibleBoard(app)     
 
 def checkDirection(app):
-    # prevTwoChars = findLastXLetters(app, 2)
     prevTwoChars = app.text[-2:]
     if prevTwoChars in app.directionsAndAngles:
         app.currDir = prevTwoChars
@@ -175,6 +176,13 @@ def checkPhoto(app):
     if prevThreeChars in app.photos:
         app.selectedPhoto = app.photoPath + prevThreeChars + '.jpg'
         app.backgroundOpacity = 26
+
+def checkShake(app):
+    prevFiveChars = app.text[-5:]
+    if prevFiveChars == 'SHAKE':
+        # hard coded to the empty space of the etch board, sorry for magic numbers lol        
+        blankSlate = [([None] * 59) for row in range(19)]
+        placeItemInWorld(app, blankSlate, 4, 3, boardReset=True)
 
 def undoDirection(app):
     # '*' is included in text to make it easier to find the last direction change
@@ -231,8 +239,8 @@ def addLetter(app, key):
 
 def checkPosition(app, targetRow, targetCol, isForward=True):
     currRow, currCol = app.localPos
-    rowLowBound, rowHighBound = 3, app.rows - 3
-    colLowBound, colHighBound = 3, app.cols - 3
+    rowLowBound, rowHighBound = 8, app.rows - 8
+    colLowBound, colHighBound = 8, app.cols - 8
     moved = False
     if targetRow <= rowLowBound and app.topLeftRow != 0:
         moved = moveCanvas(app, 0, -1, isForward)
@@ -246,7 +254,6 @@ def checkPosition(app, targetRow, targetCol, isForward=True):
     app.localPos = addTuple(app.localPos, app.directionsAndAngles[app.currDir][0]) if moved else (targetRow, targetCol)
 
 def moveCanvas(app, dCol, dRow, isForward):
-    print('moving')
     app.topLeftCol += dCol
     app.topLeftRow += dRow
     # bounds checks
@@ -257,10 +264,8 @@ def moveCanvas(app, dCol, dRow, isForward):
     # handle movement    
     else:
         if isForward:
-            print('forward')
             app.localPos = addTuple(app.localPos, (-dRow, -dCol)) 
         else:
-            print('backward')
             app.localPos = addTuple(app.localPos, (dRow, dCol)) 
     return True    
 
