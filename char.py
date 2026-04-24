@@ -1,25 +1,35 @@
+import random
+
 class Char:
-    def __init__(self, text, color, isMoving=False, movingList=[]):
+    def __init__(self, text, color, movingList=[]):
         self.text = text
         self.color = color
-        self.isMoving = isMoving
-        self.movingList = movingList
-        self.movingListIndex = 0
+        if random.randint(0,1) == 0:
+            self.movingList = movingList + movingList[::-1]
+        else:
+            self.movingList = movingList 
+        # self.movingList = movingList + movingList[::-1]
+        if self.movingList != []:
+            self.isMoving = True
+            self.movingListIndex = self.movingList.index(self.text)
+        else:
+            self.isMoving = False
+            self.movingListIndex = 0
 
     def __repr__(self):
-        return f'Char({self.text})'    
+        return f'Char({self.text}, color={self.color}, movingList={self.movingList})'    
 
     def listMove(self):
-        if not self.isMoving:
-            return
         self.text = self.movingList[self.movingListIndex]
         self.movingListIndex += 1
         if self.movingListIndex >= len(self.movingList):
             self.movingListIndex = 0
 
-    def orderedMove(self, shift):
-        if not self.isMoving:
-            return
-        letterCase = ord('a') if self.text.islower() else ord('A')
-        alphaIndex = ord(self.text) - letterCase
-        self.text = chr((alphaIndex + shift) % 26 + letterCase)
+    # def orderedMove(self, shift):
+    #     if self.movingList == []:
+    #         return
+    #     letterCase = ord('a') if self.text.islower() else ord('A')
+    #     alphaIndex = ord(self.text) - letterCase
+    #     self.text = chr((alphaIndex + shift) % 26 + letterCase)
+
+

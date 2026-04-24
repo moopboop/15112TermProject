@@ -1,38 +1,6 @@
-from cmu_graphics import *
-from char import *
-import string
+from environmentItemClass import *
 
-goldText = "MARTIN'SMAGIC15112ETCHASKETCHSCREEN"
-goldTextSet = set(c for c in goldText)
-goldColor = rgb(186, 160, 41)
-
-redTextSet = {'+', '-', '|'}
-redColor = rgb(150, 0, 0)
-
-blackColor = rgb(60,60,60)
-grayColor = rgb(150,150,150)
-
-def strTo2DList(str):
-	newList = list()
-	for line in str.splitlines():
-		newListRow = list()
-		for c in line:
-			if c in string.whitespace:
-				newListRow.append(None)
-			else:
-				if c in goldTextSet:
-					color = goldColor
-				elif c in redTextSet:
-					color = redColor
-				elif c == 'X':
-					color = blackColor
-				elif c == '.':
-					color = grayColor
-				newListRow.append(Char(c, color=color))
-		newList.append(newListRow)	
-	return newList
-
-etch = '''\
+etchStr = '''\
 +---------------------------------------------------------------+
 |+----------MARTIN'S-MAGIC-15112-ETCH-A-SKETCH-SCREEN----------+|
 ||+---------MARTIN'S-MAGIC-15112-ETCH-A-SKETCH-SCREEN---------+||
@@ -65,4 +33,16 @@ etch = '''\
 +---XXXXXXX-------------------------------------------XXXXXXX---+\
 '''
 
-newEtch = strTo2DList(etch)
+goldTextChars = set(c for c in "MARTIN'SMAGIC15112ETCHASKETCHSCREEN")
+goldColor = rgb(173, 130, 0)
+
+redTextChars = {'+', '-', '|'}
+redColor = rgb(150, 0, 0)
+
+salmonTextChars = {'X', '.'}
+salmonColor = rgb(184, 176, 152)
+# blackColor = rgb(60,60,60)
+# grayColor = rgb(150,150,150)
+
+ETCH = EnvironmentItem(etchStr, [goldTextChars, redTextChars, salmonTextChars], 
+					  [goldColor, redColor, salmonColor], [[], [], []]).item

@@ -1,6 +1,7 @@
 from cmu_graphics import *
 from char import *
-from etchBoard import *
+from etchBoard import ETCH
+from tree import TREE1, TREE2, TREE3
 import string
 import random
 
@@ -9,9 +10,9 @@ def onAppStart(app):
     app.localPos = (14,32)
     app.allowedText = set(string.ascii_letters + string.digits)
     app.text = 'EE*'
-    app.directions = {'NW':(-1,-1), 'NN':(-1, 0), 'NE':(-1, 1), 
-                      'WW':( 0,-1),               'EE':( 0, 1), 
-                      'SW':( 1,-1), 'SS':( 1, 0), 'SE':( 1, 1)}
+    app.directionsAndAngles = {'NW':[(-1,-1), 315], 'NN':[(-1, 0),   0], 'NE':[(-1, 1),  45], 
+                               'WW':[( 0,-1), 270],                      'EE':[( 0, 1),  90], 
+                               'SW':[( 1,-1), 225], 'SS':[( 1, 0), 180], 'SE':[( 1, 1), 135]}
     app.currDir = 'EE' #start by typing to the right
     app.lastChar = app.secLastChar = None
     app.lastCharPos = app.secLastCharPos = None
@@ -25,7 +26,7 @@ def onAppStart(app):
     app.rows, app.cols = 30, 65
     app.topLeftCol = app.topLeftRow = 0
     placeItemsInWorld(app)
-    calculateVisibleBoard(app, app.topLeftRow, app.topLeftCol)
+    calculateVisibleBoard(app)
     app.globalPos = addTuple(app.localPos, (app.topLeftRow, app.topLeftCol))
     app.boardLeft = 25
     app.boardTop = 25
@@ -43,38 +44,43 @@ def onAppStart(app):
 #———SYS VARS————————————————————————————————————————————————————————————————————
     app.setMaxShapeCount(5000)
     app.inspectorEnabled = False
-    app.stepsPerSecond = 30
+    app.stepsPerSecond = 6
     app.steps = 0
 
 def placeItemsInWorld(app):
-    placeItemInWorld(app, strTo2DList(etch))
+    placeItemInWorld(app, ETCH, app.topLeftRow, app.topLeftCol)
+    placeItemInWorld(app, TREE1, 100, 100)
+    placeItemInWorld(app, TREE2, 100, 130)
+    placeItemInWorld(app, TREE3, 100, 160)
 
-def placeItemInWorld(app, item):
+
+
+def placeItemInWorld(app, item, worldRow, worldCol):
     rows, cols = len(item), len(item[0])
     for row in range(rows):
         for col in range(len(item[row])):
             if item[row][col] != None:
-                insertionRow = row + app.topLeftRow
-                insertionCol = col + app.topLeftCol
+                insertionRow = row + worldRow
+                insertionCol = col + worldCol
                 app.world[insertionRow][insertionCol] = item[row][col]
 
-def calculateVisibleBoard(app, rowOffset, colOffset):
+def calculateVisibleBoard(app):
     app.board = []
     for i in range(app.rows):
         rowList = []
         for j in range(app.cols):
-            rowList.append(app.world[rowOffset + i][colOffset + j])
+            rowList.append(app.world[app.topLeftRow + i][app.topLeftCol + j])
         app.board.append(rowList)
 
 def onStep(app):
     app.steps += 1
-    if app.steps % (app.stepsPerSecond//3) == 0:
+    if app.steps % 2 == 0:
         app.cursorBlink = not app.cursorBlink
     if app.backgroundOpacity < 100:
         app.backgroundOpacity += 2
 
     # after checks, reset after 30 steps (once per sec)
-    if app.steps >= 30:
+    if app.steps >= 3:
         app.steps = 0
             
 def redrawAll(app):
@@ -89,16 +95,6 @@ def drawBoard(app):
             drawCell(app, row, col)
 
 def drawCell(app, row, col):
-    def findAngleFromDir():
-        if   app.currDir == 'NN':    return 0
-        elif app.currDir == 'NE':    return 45
-        elif app.currDir == 'EE':    return 90
-        elif app.currDir == 'SE':    return 135
-        elif app.currDir == 'SS':    return 180
-        elif app.currDir == 'SW':    return 225
-        elif app.currDir == 'WW':    return 270           
-        elif app.currDir == 'NW':    return 315
-
     def getCellLeftTop(row, col):
         cellWidth, cellHeight = getCellSize()
         cellLeft = app.boardLeft + col * cellWidth
@@ -124,10 +120,10 @@ def drawCell(app, row, col):
         drawLabel(char.text, cx, cy, size=18, align='bottom', 
                   font='monospace', fill=char.color)
         drawRect(left, top-(height//3), width, height, fill=char.color, opacity=5)
-        if char.isMoving and app.steps % 3 == 0:
+        if char.isMoving:
             char.listMove()
     if (row,col) == app.localPos:
-        angle = findAngleFromDir()
+        angle = app.directionsAndAngles[app.currDir][1]
         if app.cursorBlink:
             rectColor, cursColor = rgb(50,50,50), rgb(200,200,200)
         else:
@@ -159,12 +155,13 @@ def onKeyPress(app, key, modifiers):
         undoDirection(app)
     elif len(key) == 1:
         addLetter(app, key)
-    calculateVisibleBoard(app, app.topLeftRow, app.topLeftCol)     
+    app.board = []    
+    calculateVisibleBoard(app)     
 
 def checkDirection(app):
     # prevTwoChars = findLastXLetters(app, 2)
     prevTwoChars = app.text[-2:]
-    if prevTwoChars in app.directions:
+    if prevTwoChars in app.directionsAndAngles:
         app.currDir = prevTwoChars
         app.text += '*'
 
@@ -193,7 +190,7 @@ def undoDirection(app):
 
 def deleteLastLetter(app):
     def findOppositeDirection():
-        dx, dy = app.directions[app.currDir]
+        dx, dy = app.directionsAndAngles[app.currDir][0]
         return (dx * -1, dy * -1)
 
     oppDir = findOppositeDirection()
@@ -210,7 +207,7 @@ def addLetter(app, key):
     currRow, currCol = app.localPos
     currRow += app.topLeftRow
     currCol += app.topLeftCol
-    targetRow, targetCol = addTuple((currRow, currCol), app.directions[app.currDir])
+    targetRow, targetCol = addTuple((currRow, currCol), app.directionsAndAngles[app.currDir][0])
     if (targetRow < 0 or targetRow >= app.worldRows or 
         targetCol < 0 or targetCol >= app.worldCols):
         return
@@ -241,7 +238,7 @@ def checkPosition(app, targetRow, targetCol, isForward=True):
     elif targetCol >= colHighBound and app.topLeftCol != app.worldCols:
         moved = moveCanvas(app, +1, 0, isForward)
     
-    app.localPos = addTuple(app.localPos, app.directions[app.currDir]) if moved else (targetRow, targetCol)
+    app.localPos = addTuple(app.localPos, app.directionsAndAngles[app.currDir][0]) if moved else (targetRow, targetCol)
 
 def moveCanvas(app, dCol, dRow, isForward):
     print('moving')
