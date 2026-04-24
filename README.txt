@@ -12,6 +12,8 @@ For any command, once you type it out, hit ENTER to submit the move.
 
 3. + or - to change the dimensions of the visible board (note: try and stay in the center of the screen while changing dimensions)
 
-4. As a special thank you to professors Kosbie and Sands, my incredible project mentor Yudh, and my other incredible recitation TA Harrison, type KOZ, SAN, YUD, or HAR for a special surprise :)
+4. Press delete to undo your most recent letter, or Ctrl-Z to undo until your last direction change
+
+5. As a special thank you to professors Kosbie and Sands, my incredible project mentor Yudh, and my other incredible recitation TA Harrison, type KOZ, SAN, YUD, or HAR for a special surprise :)
 
 Thank you for reading, and I hope you enjoy the little environment!
