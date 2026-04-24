@@ -225,14 +225,8 @@ def addLetter(app, key):
         targetCol < 0 or targetCol >= app.worldCols):
         return
     if app.world[targetRow][targetCol] == app.boardDefault:   
-        if key.isdigit():
-            red = random.randint(0,255)
-            green = random.randint(0,255)
-            blue = random.randint(0,255)
-            color = rgb(red, green, blue)
-        else:
-            hue = random.randint(10,40)
-            color = rgb(hue, hue, hue) 
+        hue = random.randint(10,40)
+        color = rgb(hue, hue, hue) 
         app.world[currRow][currCol] = Char(key, color=color)
         app.text += key
         checkPosition(app, targetRow - app.topLeftRow, targetCol - app.topLeftCol)
@@ -250,7 +244,6 @@ def checkPosition(app, targetRow, targetCol, isForward=True):
         moved = moveCanvas(app, -1, 0, isForward)
     elif targetCol >= colHighBound and app.topLeftCol != app.worldCols:
         moved = moveCanvas(app, +1, 0, isForward)
-    
     app.localPos = addTuple(app.localPos, app.directionsAndAngles[app.currDir][0]) if moved else (targetRow, targetCol)
 
 def moveCanvas(app, dCol, dRow, isForward):
